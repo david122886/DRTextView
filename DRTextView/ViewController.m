@@ -46,6 +46,7 @@
     
     NSMutableAttributedString *attriString = [[NSMutableAttributedString alloc] initWithString:kChapterContent];
     [attriString addAttributes:attriDic range:(NSRange){0,kChapterContent.length}];
+    [attriString addAttribute:NSForegroundColorAttributeName value:[UIColor blueColor] range:(NSRange){20,10}];
     self.textView.attriString = attriString;
     
     self.textView.dotColor = [UIColor yellowColor];
