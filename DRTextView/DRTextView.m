@@ -25,13 +25,16 @@ typedef struct{
     CFRange startCharRange;
 } TouchCtr;
 
-@interface DRTextView(){
+@interface DRTextView()<UIGestureRecognizerDelegate>{
     CTFrameRef textCTFrame;
     CGPoint movePoint;
     TouchCtr touchCtr;///CFRange必须初始化，不然默认值为0
     BOOL touchMoved,panCanWork;
     CFRange oldSelectedRange;///记录点击选中区域,区别单击点中是已经选中区域/新区域,新区域没有移动时需要选中整行
     CGAffineTransform transform;
+    
+    CGPoint panStartPoint;///pan手势开始位置
+    
 }
 ///坐标系是Core Text左下角为原点坐标系
 @property (strong,nonatomic) NSArray *stringRects;
@@ -72,6 +75,7 @@ typedef struct{
         _panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(panCurrentViewGesture:)];
         _panGesture.maximumNumberOfTouches = 1;
         _panGesture.enabled = NO;
+        _panGesture.delegate = self;
         [self addGestureRecognizer:_panGesture];
         
         ///设置电池监听有效
@@ -210,14 +214,20 @@ typedef struct{
         panCanWork = NO;
         return ;
     }
-
+    CFRange lineRange;
     CFRange range = [self parseTypedCharRangeWithFrame:textCTFrame
                                           withPosition:point
-                                          outLineRange:nil];
+                                          outLineRange:&lineRange];
     if (range.location == kCFNotFound) {
         panCanWork = NO;
         return ;
     }
+//    if (CFRangeGetMax(lineRange) - CFRangeGetMax(range) >= 1) {
+//        range.length = range.length +1;
+//    }
+//    if (CFRangeGetMin(range) - CFRangeGetMin(lineRange) >= 1) {
+//        range.location = range.location - 1;
+//    }
     CFRange startCharRange = [self calStartCharRangeWithSelectedRange:touchCtr.selectedRange withPointRange:range];
     if (startCharRange.location == kCFNotFound) {
         panCanWork = NO;
@@ -272,7 +282,7 @@ typedef struct{
     
     if (gesture.state == UIGestureRecognizerStateBegan) {
         self.longGesture.enabled = NO;
-        [self beginPanGesture:gesture withPoint:transPoint withTouchPoint:point];
+        [self beginPanGesture:gesture withPoint:transPoint withTouchPoint:panStartPoint];
     }else
         if (panCanWork && gesture.state == UIGestureRecognizerStateChanged) {
             [self changedPanGesture:gesture withPoint:transPoint withTouchPoint:point];
@@ -285,6 +295,12 @@ typedef struct{
             }
 }
 
+
+#pragma mark - UIGestureRecognizerDelegate
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch{
+    panStartPoint = [touch locationInView:self];
+    return YES;
+}
 
 #pragma mark - 画内容
 - (void)drawRect:(CGRect)rect {

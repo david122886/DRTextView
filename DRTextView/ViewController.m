@@ -9,7 +9,7 @@
 #import "ViewController.h"
 #import "DRTextView.h"
 
-#define kChapterContent @"猎"
+#define kChapterContent @"猎云注：本文讲述了一位艰难创业者背后，妻子默默支持老公的故事。创业不易，老公与CEO谈股份谈崩，面临净身出户，需要重新找工作的境地。妻子不知道怎么帮老公争股份，不知道该如何跟不讲理的人打交道，于是写下这篇“求职帖”，“如果你们是一个靠谱的团队，想招一个靠谱的技术负责人，我真的觉得我老公是最适合的！”妻子这样说道。文章转自诶诶想你公众号：发现身边，作者：Emily Liu 。"
 
 @interface ViewController ()<DRTextViewDelegate>
 @property (strong,nonatomic) DRTextView *textView;
