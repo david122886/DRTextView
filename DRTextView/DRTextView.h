@@ -9,6 +9,9 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 
+#define kPageHeaderH 200
+#define kPageFooterH 20
+
 NS_INLINE NSString *NSStringFromCFRange(CFRange range){
     if (range.location == kCFNotFound) {
         return @"";

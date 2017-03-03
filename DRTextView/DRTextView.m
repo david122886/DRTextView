@@ -40,7 +40,7 @@ typedef struct{
 @implementation DRTextView
 
 -(instancetype)initWithFrame:(CGRect)frame{
-    return [self initWithFrame:frame withAreaRects:@[NSStringFromCGRect((CGRect){0,0,frame.size})]];
+    return [self initWithFrame:frame withAreaRects:@[NSStringFromCGRect((CGRect){0,kPageFooterH,frame.size.width,frame.size.height - kPageFooterH-kPageHeaderH})]];
 }
 
 -(instancetype)initWithFrame:(CGRect)frame withAreaRects:(NSArray*)areaRects{
@@ -728,6 +728,7 @@ typedef struct{
         CTLineRef line = CFArrayGetValueAtIndex(lines, index);
         CGRect selectedRec = [self parseSelectedRectInLineWithWithFrame:ctframe withOrigin:origins[index] withlineRef:line withFramePathBounds:CGPathGetBoundingBox(path)  withStrRange:stringRange];
         if (!CGRectEqualToRect(selectedRec, CGRectZero)) {
+            selectedRec = CGRectOffset(selectedRec, 0, kPageFooterH);
             [rectArr addObject:NSStringFromCGRect(selectedRec)];
         }
     }
