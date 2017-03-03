@@ -10,12 +10,28 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "DRTextView/DRTextView.m"
-            timestampString = "510215467.337585"
+            timestampString = "510221920.429811"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "355"
-            endingLineNumber = "355"
-            landmarkName = "-drawSectionDot"
+            startingLineNumber = "730"
+            endingLineNumber = "730"
+            landmarkName = "-parseTypedCharRangeWithFrame:withPosition:outLineRange:"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "DRTextView/DRTextView.m"
+            timestampString = "510221919.786866"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "722"
+            endingLineNumber = "722"
+            landmarkName = "-parseTypedCharRangeWithFrame:withPosition:outLineRange:"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

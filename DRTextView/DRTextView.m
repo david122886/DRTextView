@@ -174,8 +174,10 @@ typedef struct{
         self.stringRects = [self parseStringRectsWithFrame:textCTFrame withRange:touchCtr.startLineRange];
         [self setNeedsDisplay];
     }
-    if (self.delegate && [self.delegate respondsToSelector:@selector(textView:didSelectedStringRange:andSelectedRects:)]) {
-        [self.delegate textView:self didSelectedStringRange:(NSRange){touchCtr.selectedRange.location,touchCtr.selectedRange.length} andSelectedRects:self.stringRects];
+    if (touchCtr.selectedRange.location != kCFNotFound) {
+        if (self.delegate && [self.delegate respondsToSelector:@selector(textView:didSelectedStringRange:andSelectedRects:)]) {
+            [self.delegate textView:self didSelectedStringRange:(NSRange){touchCtr.selectedRange.location,touchCtr.selectedRange.length} andSelectedRects:self.stringRects];
+        }
     }
 }
 
@@ -216,9 +218,6 @@ typedef struct{
         panCanWork = NO;
         return ;
     }
-    if (range.location > 0) {
-        range.location = range.location -1;
-    }
     CFRange startCharRange = [self calStartCharRangeWithSelectedRange:touchCtr.selectedRange withPointRange:range];
     if (startCharRange.location == kCFNotFound) {
         panCanWork = NO;
@@ -256,8 +255,10 @@ typedef struct{
                withPoint:(CGPoint)point
           withTouchPoint:(CGPoint)touchPoint{
     [self hiddenMagnifier];
-    if (self.delegate && [self.delegate respondsToSelector:@selector(textView:didSelectedStringRange:andSelectedRects:)]) {
-        [self.delegate textView:self didSelectedStringRange:(NSRange){touchCtr.selectedRange.location,touchCtr.selectedRange.length} andSelectedRects:self.stringRects];
+    if (touchCtr.selectedRange.location != kCFNotFound) {
+        if (self.delegate && [self.delegate respondsToSelector:@selector(textView:didSelectedStringRange:andSelectedRects:)]) {
+            [self.delegate textView:self didSelectedStringRange:(NSRange){touchCtr.selectedRange.location,touchCtr.selectedRange.length} andSelectedRects:self.stringRects];
+        }
     }
 }
 
@@ -717,7 +718,20 @@ typedef struct{
         ///测试发现鼠标定位字符前半部分能获取正确下标，鼠标定位字符后半部分获取是下一个字符下标
         CGFloat rangeOffset = CTLineGetStringIndexForPosition(selectedLine,(CGPoint){point.x - origin.x,point.y - origin.y});
         
+        CGFloat xStart,xEnd;
         if (rangeOffset < lineRange.location + lineRange.length) {
+            xStart = CTLineGetOffsetForStringIndex(selectedLine, rangeOffset, NULL);
+            xEnd = CTLineGetOffsetForStringIndex(selectedLine,rangeOffset+1, NULL);
+        }else{
+            xStart = CTLineGetOffsetForStringIndex(selectedLine, rangeOffset-1, NULL);
+            xEnd = CTLineGetOffsetForStringIndex(selectedLine,rangeOffset, NULL);
+        }
+        
+        rangeOffset = CTLineGetStringIndexForPosition(selectedLine,(CGPoint){point.x - origin.x - (xEnd - xStart)/2,point.y - origin.y});
+        
+        if (rangeOffset < lineRange.location + lineRange.length) {
+            
+            
             charRange = CFRangeMake(rangeOffset, 1);
             if (pLineRange) {
                 *pLineRange = lineRange;
