@@ -49,6 +49,10 @@
     self.textView.dotColor = [UIColor yellowColor];
     self.textView.cursorColor = [UIColor redColor];
     self.textView.selectedBgColor = [UIColor colorWithRed:10/255.0 green:200/255.0 blue:50/255.0 alpha:0.6];
+    
+    self.textView.chapterName = @"测试测试";
+    self.textView.progress = @"69.5%";
+    self.textView.bookName = @"测试";
 }
 
 - (void)didReceiveMemoryWarning {

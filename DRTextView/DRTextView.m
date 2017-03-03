@@ -33,6 +33,7 @@ typedef struct{
     CFRange oldSelectedRange;///记录点击选中区域,区别单击点中是已经选中区域/新区域,新区域没有移动时需要选中整行
     CGAffineTransform transform;
 }
+///坐标系是Core Text左下角为原点坐标系
 @property (strong,nonatomic) NSArray *stringRects;
 @property (nonatomic,strong) LSYMagnifierView *magnifierView;
 @end
@@ -58,6 +59,11 @@ typedef struct{
         _cursorColor = [UIColor yellowColor];
         _selectedBgColor = [UIColor colorWithRed:100/255.0 green:20/255.0 blue:50/255.0 alpha:0.5];
         
+        _pageHeaderFooterColor = [UIColor blackColor];
+        _pageHeaderFooterFont = [UIFont systemFontOfSize:10];
+        
+        _progress = @"0%";
+        
         _longGesture = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(longCurrentViewGesture:)];
         //        _longGesture.numberOfTapsRequired = 1;///长按手势设置这个值后没有反应
         _longGesture.numberOfTouchesRequired = 1;
@@ -68,6 +74,8 @@ typedef struct{
         _panGesture.enabled = NO;
         [self addGestureRecognizer:_panGesture];
         
+        ///设置电池监听有效
+        [[UIDevice currentDevice] setBatteryMonitoringEnabled:YES];
     }
     return self;
 }
@@ -279,38 +287,48 @@ typedef struct{
 
 #pragma mark - 画内容
 - (void)drawRect:(CGRect)rect {
-    if (!self.attriString) {
-        return;
-    }
     CGContextRef context = UIGraphicsGetCurrentContext();
-    
-    CGContextTranslateCTM(context, 0, self.bounds.size.height);
-    CGContextScaleCTM(context, 1.0, -1.0);
-    
-    [self drawSectionArea];
-    ///path 设置文字显示区域，可以是多个不连续独立区域，作用是用于控制内容排版
-    CGMutablePathRef path = CGPathCreateMutable();
-    if (self.areaRectsArr.count <= 0) {
-        CGPathAddRect(path, NULL, (CGRect){0,0,rect.size.width,rect.size.height});
-    }else{
-        for (NSString *strRect in self.areaRectsArr) {
-            CGPathAddRect(path, NULL, CGRectFromString(strRect));
+   
+    if (self.attriString) {
+        CGContextSaveGState(context);
+        
+        CGContextTranslateCTM(context, 0, self.bounds.size.height);
+        CGContextScaleCTM(context, 1.0, -1.0);
+        
+        [self drawSectionArea];
+        
+        ///path 设置文字显示区域，可以是多个不连续独立区域，作用是用于控制内容排版
+        CGMutablePathRef path = CGPathCreateMutable();
+        if (self.areaRectsArr.count <= 0) {
+            CGPathAddRect(path, NULL, (CGRect){0,0,rect.size.width,rect.size.height});
+        }else{
+            for (NSString *strRect in self.areaRectsArr) {
+                CGPathAddRect(path, NULL, CGRectFromString(strRect));
+            }
         }
+        
+        CTFramesetterRef setterRef = CTFramesetterCreateWithAttributedString((__bridge CFAttributedStringRef)self.attriString);
+        if (textCTFrame) {
+            CFRelease(textCTFrame);
+            textCTFrame = NULL;
+        }
+        textCTFrame = CTFramesetterCreateFrame(setterRef, CFRangeMake(0, self.attriString.length), path, NULL);
+        CTFrameDraw(textCTFrame, context);
+        
+        CFRelease(setterRef);
+        CGPathRelease(path);
+        if (self.stringRects.count > 0) {
+            [self drawSectionDot];
+        }
+        CGContextRestoreGState(context);
     }
-
-    CTFramesetterRef setterRef = CTFramesetterCreateWithAttributedString((__bridge CFAttributedStringRef)self.attriString);
-    if (textCTFrame) {
-        CFRelease(textCTFrame);
-        textCTFrame = NULL;
-    }
-    textCTFrame = CTFramesetterCreateFrame(setterRef, CFRangeMake(0, self.attriString.length), path, NULL);
-    CTFrameDraw(textCTFrame, context);
     
-    CFRelease(setterRef);
-    CGPathRelease(path);
-    if (self.stringRects.count > 0) {
-        [self drawSectionDot];
-    }
+    CGContextSaveGState(context);
+    [self drawPageHeader];
+    [self drawPageFooter];
+    CGContextRestoreGState(context);
+    
+
 }
 
 ///画高亮选中区域
@@ -345,6 +363,78 @@ typedef struct{
     CGContextFillEllipseInRect(context,(CGRect){right.origin.x - dotW*1.5,CGRectGetMinY(right)-dotW*4,dotW*4,dotW*4});
 }
 
+///章节名
+-(void)drawPageHeader{
+    if (!self.chapterName || [self.chapterName isEqualToString:@""]) {
+        return;
+    }
+    CGRect headerRect = (CGRect){0,0,CGRectGetWidth(self.bounds),kPageHeaderH};
+    [self.chapterName drawInRect:headerRect withAttributes:@{NSForegroundColorAttributeName:self.pageHeaderFooterColor,NSFontAttributeName:self.pageHeaderFooterFont}];
+    
+    
+}
+///画页脚，进度，书籍名，时间，电池
+-(void)drawPageFooter{
+    CGFloat progressW = 50,batteryW = 20,space = 10,dateStringW = 30;
+    ///百分比
+    CGRect progressRect = (CGRect){space,CGRectGetHeight(self.bounds)-kPageFooterH,progressW,kPageFooterH};
+    
+    ///执行会翻转坐标系统
+    [self.progress drawInRect:progressRect withAttributes:@{NSForegroundColorAttributeName:self.pageHeaderFooterColor,NSFontAttributeName:self.pageHeaderFooterFont}];
+    
+    ///书籍名
+    if (self.bookName && ![self.bookName isEqualToString:@""]) {
+        CGFloat w = CGRectGetWidth(self.bounds) - progressW - batteryW - dateStringW - space*4;
+        CGFloat centerX = CGRectGetMaxX(progressRect) + space + w/2;
+        CGSize size = [self.bookName sizeWithAttributes:@{NSForegroundColorAttributeName:self.pageHeaderFooterColor,NSFontAttributeName:self.pageHeaderFooterFont}];
+        if (size.width > w) {
+            size.width = w;
+        }
+        CGRect strRect = (CGRect){centerX-size.width/2,CGRectGetHeight(self.bounds)-kPageFooterH,size.width,kPageFooterH};
+        [self.bookName drawInRect:strRect withAttributes:@{NSForegroundColorAttributeName:self.pageHeaderFooterColor,NSFontAttributeName:self.pageHeaderFooterFont}];
+    }
+    
+    ///时间和电池
+    [self drawBatteryAndDateWithDateStrW:dateStringW withBatteryW:batteryW];
+}
+
+
+///画电池和时间
+-(void)drawBatteryAndDateWithDateStrW:(CGFloat)dateStringW withBatteryW:(CGFloat)batteryW{
+    CGRect rect = self.bounds;
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    
+    NSDateFormatter *formmatter = [[NSDateFormatter alloc] init];
+    [formmatter setDateFormat:@"HH:mm"];
+    
+    NSString *date = [formmatter stringFromDate:[NSDate date]];
+    float originY = rect.size.height - kPageFooterH;
+
+    
+    float dateStringX = rect.size.width - 70;
+    float dateStringH = 15;
+    
+    NSMutableParagraphStyle *percentStyle = [[NSMutableParagraphStyle alloc] init];
+    percentStyle.alignment = NSTextAlignmentLeft;
+    percentStyle.lineBreakMode = NSLineBreakByTruncatingTail;
+    
+    NSDictionary *textAttributedic = @{NSForegroundColorAttributeName:self.pageHeaderFooterColor,NSFontAttributeName:self.pageHeaderFooterFont};
+
+    [date drawInRect:(CGRect){dateStringX,originY,dateStringW,dateStringH} withAttributes:textAttributedic];
+    
+    ///画电池
+    int batteryX = rect.size.width - 35;
+    int batteryH = 9;
+    int batteryY = originY +2;
+    //    [[UIDevice currentDevice] setBatteryMonitoringEnabled:YES];
+    float level = [[UIDevice currentDevice] batteryLevel];
+    float batteryLevel = fabsf(level);
+    CGContextSetFillColorWithColor(context, self.pageHeaderFooterColor.CGColor);
+    CGContextSetLineWidth(context, 0.5);
+    CGContextStrokeRect(context, (CGRect){batteryX,batteryY,batteryW,batteryH});
+    CGContextFillRect(context, (CGRect){batteryX+batteryW+1,batteryY+2,2,batteryH/2});
+    CGContextFillRect(context, (CGRect){batteryX+1,batteryY+1,batteryW*batteryLevel >= batteryW-2?batteryW-2:batteryW*batteryLevel,batteryH-2});
+}
 /*
 >>>>>>> gesture_added
 - (void)drawRect:(CGRect)rect {
@@ -502,41 +592,8 @@ typedef struct{
     free(origins);
 }
 */
-/**
- * @brief 获取每行frame
- *
- * @param  line 行对象
- * @param  origin 每一行起始点(frame origin)
- * @param  pathBounds frame排版区域
- *
- * @return 返回当前行frame
- */
--(CGRect)parseLineRectWithLine:(CTLineRef)line
-                 withLineOrigin:(CGPoint)origin
-            withFramePathBounds:(CGRect)pathBounds
-                   outLineGrap:(CGFloat *)pleading
-                     outAscent:(CGFloat *)pAscent
-                    outDescent:(CGFloat *)pDescent
-                  outLineWidth:(CGFloat *)pLineWidth{
-    CGFloat ascent,descent,leading,lineWidth;
-    lineWidth = CTLineGetTypographicBounds(line, &ascent, &descent, &leading);
-    /*
-     CGRect lineRect = CTLineGetBoundsWithOptions(line, kCTLineBoundsExcludeTypographicLeading);
-     rect.origin.y = origin.y-descent + pathBounds.origin.y;
-     rect.origin.x = origin.x + pathBounds.origin.x;
-     */
-    ///line frame 都是相对行origin + 整个排版区域计算
-    CGFloat x = origin.x + pathBounds.origin.x;
-    CGFloat y = origin.y-descent + pathBounds.origin.y;
-    CGFloat height = ascent+descent+leading;
-    
-    if(pleading)*pleading = leading;
-    if(pAscent)*pAscent = ascent;
-    if(pDescent)*pDescent = descent;
-    if(pLineWidth)*pLineWidth = lineWidth;
-    
-    return (CGRect){x,y,lineWidth,height};
-}
+
+#pragma mark - 单击事件
 
 ///UIGesture拦截手势后，此回调不会调用
 -(void)touchesEnded:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event{
@@ -571,6 +628,44 @@ typedef struct{
 }
 
 #pragma mark - 新思路，接口之间数据通过stringRange传递
+
+/**
+ * @brief 获取每行frame
+ *
+ * @param  line 行对象
+ * @param  origin 每一行起始点(frame origin)
+ * @param  pathBounds frame排版区域
+ *
+ * @return 返回当前行frame
+ */
+-(CGRect)parseLineRectWithLine:(CTLineRef)line
+                withLineOrigin:(CGPoint)origin
+           withFramePathBounds:(CGRect)pathBounds
+                   outLineGrap:(CGFloat *)pleading
+                     outAscent:(CGFloat *)pAscent
+                    outDescent:(CGFloat *)pDescent
+                  outLineWidth:(CGFloat *)pLineWidth{
+    CGFloat ascent,descent,leading,lineWidth;
+    lineWidth = CTLineGetTypographicBounds(line, &ascent, &descent, &leading);
+    /*
+     CGRect lineRect = CTLineGetBoundsWithOptions(line, kCTLineBoundsExcludeTypographicLeading);
+     rect.origin.y = origin.y-descent + pathBounds.origin.y;
+     rect.origin.x = origin.x + pathBounds.origin.x;
+     */
+    ///line frame 都是相对行origin + 整个排版区域计算
+    CGFloat x = origin.x + pathBounds.origin.x;
+    CGFloat y = origin.y-descent + pathBounds.origin.y;
+    CGFloat height = ascent+descent+leading;
+    
+    if(pleading)*pleading = leading;
+    if(pAscent)*pAscent = ascent;
+    if(pDescent)*pDescent = descent;
+    if(pLineWidth)*pLineWidth = lineWidth;
+    
+    return (CGRect){x,y,lineWidth,height};
+}
+
+
 /**
  * @brief 通过position获取stringrange
  *

@@ -9,8 +9,8 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 
-#define kPageHeaderH 200
-#define kPageFooterH 20
+#define kPageHeaderH 15
+#define kPageFooterH 15
 
 NS_INLINE NSString *NSStringFromCFRange(CFRange range){
     if (range.location == kCFNotFound) {
@@ -125,8 +125,21 @@ NS_INLINE CFRange CFRangeSupplementaryRange(CFRange r1,CFRange r2,int flag){
 @property (strong,nonatomic) UIColor *cursorColor;
 ///选中区域背景色
 @property (strong,nonatomic) UIColor *selectedBgColor;
+
 ///显示文本
 @property (strong,nonatomic) NSAttributedString *attriString;
+
+///页眉/页脚颜色
+@property (strong,nonatomic) UIColor *pageHeaderFooterColor;
+///页眉/页脚字体
+@property (strong,nonatomic) UIFont *pageHeaderFooterFont;
+
+
+
+@property (strong,nonatomic) NSString *chapterName;
+@property (strong,nonatomic) NSString *progress;
+@property (strong,nonatomic) NSString *bookName;
+
 -(instancetype)initWithFrame:(CGRect)frame withAreaRects:(NSArray*)areaRects;
 
 @end

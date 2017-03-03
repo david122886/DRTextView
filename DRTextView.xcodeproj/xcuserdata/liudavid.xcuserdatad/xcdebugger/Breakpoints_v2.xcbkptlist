@@ -10,11 +10,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "DRTextView/DRTextView.m"
-            timestampString = "510200326.017285"
+            timestampString = "510215467.337585"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "337"
-            endingLineNumber = "337"
+            startingLineNumber = "355"
+            endingLineNumber = "355"
             landmarkName = "-drawSectionDot"
             landmarkType = "7">
          </BreakpointContent>
