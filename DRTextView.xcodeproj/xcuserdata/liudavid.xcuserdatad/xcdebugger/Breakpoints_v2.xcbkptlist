@@ -10,11 +10,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "DRTextView/DRTextView.m"
-            timestampString = "510223934.179482"
+            timestampString = "510463346.644651"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "746"
-            endingLineNumber = "746"
+            startingLineNumber = "783"
+            endingLineNumber = "783"
             landmarkName = "-parseTypedCharRangeWithFrame:withPosition:outLineRange:"
             landmarkType = "7">
          </BreakpointContent>
@@ -26,11 +26,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "DRTextView/DRTextView.m"
-            timestampString = "510223934.179482"
+            timestampString = "510463346.644651"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "738"
-            endingLineNumber = "738"
+            startingLineNumber = "775"
+            endingLineNumber = "775"
             landmarkName = "-parseTypedCharRangeWithFrame:withPosition:outLineRange:"
             landmarkType = "7">
          </BreakpointContent>

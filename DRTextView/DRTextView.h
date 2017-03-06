@@ -11,6 +11,8 @@
 
 #define kPageHeaderH 15
 #define kPageFooterH 15
+///选中区域进行缩放有效范围
+#define kPanSectionScope 20
 
 NS_INLINE NSString *NSStringFromCFRange(CFRange range){
     if (range.location == kCFNotFound) {
@@ -134,6 +136,8 @@ NS_INLINE CFRange CFRangeSupplementaryRange(CFRange r1,CFRange r2,int flag){
 ///页眉/页脚字体
 @property (strong,nonatomic) UIFont *pageHeaderFooterFont;
 
+///行间距
+@property (assign,nonatomic) CGFloat lineSpace;
 
 
 @property (strong,nonatomic) NSString *chapterName;

@@ -66,6 +66,7 @@ typedef struct{
         _pageHeaderFooterFont = [UIFont systemFontOfSize:10];
         
         _progress = @"0%";
+        _lineSpace = 20;
         
         _longGesture = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(longCurrentViewGesture:)];
         //        _longGesture.numberOfTapsRequired = 1;///长按手势设置这个值后没有反应
@@ -214,6 +215,17 @@ typedef struct{
         panCanWork = NO;
         return ;
     }
+    ///1.根据选中范围计算
+    CFRange needRange = [self panSelectedBeginRangeWithPosition:point withTouchCtr:touchCtr withSelectedRects:self.stringRects];
+    if (needRange.location != kCFNotFound) {
+        touchCtr.startLineRange = touchCtr.selectedRange;
+        touchCtr.startCharRange = needRange;
+        [self setNeedsDisplay];
+        panCanWork = YES;
+        return;
+    }
+    
+    ///2.根据range调用苹果底层接口计算
     CFRange lineRange;
     CFRange range = [self parseTypedCharRangeWithFrame:textCTFrame
                                           withPosition:point
@@ -222,12 +234,6 @@ typedef struct{
         panCanWork = NO;
         return ;
     }
-//    if (CFRangeGetMax(lineRange) - CFRangeGetMax(range) >= 1) {
-//        range.length = range.length +1;
-//    }
-//    if (CFRangeGetMin(range) - CFRangeGetMin(lineRange) >= 1) {
-//        range.location = range.location - 1;
-//    }
     CFRange startCharRange = [self calStartCharRangeWithSelectedRange:touchCtr.selectedRange withPointRange:range];
     if (startCharRange.location == kCFNotFound) {
         panCanWork = NO;
@@ -275,20 +281,24 @@ typedef struct{
 ///拖动手势
 -(void)panCurrentViewGesture:(UIPanGestureRecognizer*)gesture{
     //    NSLog(@"panCurrentViewGesture");
-    
-    CGPoint point,transPoint;
-    point = [gesture locationInView:self];
-    transPoint =  CGPointApplyAffineTransform(point, transform);///注意坐标系必须在一个坐标系内
-    
     if (gesture.state == UIGestureRecognizerStateBegan) {
         self.longGesture.enabled = NO;
-        [self beginPanGesture:gesture withPoint:transPoint withTouchPoint:panStartPoint];
+        CGPoint point,transPoint;
+        point = panStartPoint;
+        transPoint =  CGPointApplyAffineTransform(point, transform);///注意坐标系必须在一个坐标系内
+        [self beginPanGesture:gesture withPoint:transPoint withTouchPoint:point];
     }else
         if (panCanWork && gesture.state == UIGestureRecognizerStateChanged) {
+            CGPoint point,transPoint;
+            point = [gesture locationInView:self];
+            transPoint =  CGPointApplyAffineTransform(point, transform);///注意坐标系必须在一个坐标系内
             [self changedPanGesture:gesture withPoint:transPoint withTouchPoint:point];
         }else
             if (gesture.state == UIGestureRecognizerStateEnded || gesture.state == UIGestureRecognizerStateCancelled || gesture.state == UIGestureRecognizerStateFailed) {
                 if (panCanWork) {
+                    CGPoint point,transPoint;
+                    point = [gesture locationInView:self];
+                    transPoint =  CGPointApplyAffineTransform(point, transform);///注意坐标系必须在一个坐标系内
                     [self endPanGesture:gesture withPoint:transPoint withTouchPoint:point];
                 }
                 self.longGesture.enabled = YES;
@@ -646,6 +656,31 @@ typedef struct{
 
 #pragma mark - 新思路，接口之间数据通过stringRange传递
 
+///拖拽手势扩大/缩小选中区域
+-(CFRange)panSelectedBeginRangeWithPosition:(CGPoint)point
+                               withTouchCtr:(TouchCtr)ctr
+                          withSelectedRects:(NSArray*)rectArr{
+    if (ctr.selectedRange.location == kCFNotFound || !rectArr || rectArr.count <= 0) {
+        return CFRangeMake(kCFNotFound, 0);
+    }
+    
+    CGRect pointRect = (CGRect){point.x - kPanSectionScope,point.y - kPanSectionScope,kPanSectionScope*2,kPanSectionScope*2};
+    
+    CGRect firstRect = CGRectFromString([rectArr firstObject]);
+    CGPoint firstPoint = (CGPoint){CGRectGetMinX(firstRect),CGRectGetMinY(firstRect) + CGRectGetHeight(firstRect)};
+    if (CGRectContainsPoint(pointRect, firstPoint)) {
+        return CFRangeMake(CFRangeGetMax(ctr.selectedRange)-1,1);
+    }
+    
+    CGRect lastRect = CGRectFromString([rectArr lastObject]);
+    CGPoint lastPoint = (CGPoint){CGRectGetMaxX(lastRect),CGRectGetMinY(lastRect)};
+    if (CGRectContainsPoint(pointRect, lastPoint)) {
+        return CFRangeMake(ctr.selectedRange.location,1);
+    }
+
+    return CFRangeMake(kCFNotFound, 0);
+}
+
 /**
  * @brief 获取每行frame
  *
@@ -707,7 +742,7 @@ typedef struct{
     CTLineRef selectedLine = NULL;
     CGPoint origin;
     CGFloat descent = 0.0f;
-    
+    CGRect compareRect = CGRectZero;
     for (CFIndex index = 0; index < lineCount; index++) {
         CGPoint tmpOrigin = origins[index];
         CTLineRef line = CFArrayGetValueAtIndex(lines, index);
@@ -719,9 +754,10 @@ typedef struct{
                                            outDescent:&descent
                                          outLineWidth:nil];
         ///注意坐标系必须在一个坐标系内
-        if (CGRectContainsPoint(lineRect,point)) {
+        if (CGRectContainsPoint(CGRectInset(lineRect,0, -self.lineSpace),point)) {
             selectedLine = line;
             origin = tmpOrigin;
+            compareRect = lineRect;
             break;
         }
     }
@@ -732,7 +768,8 @@ typedef struct{
         CFRange lineRange = CTLineGetStringRange(selectedLine);
         ///CTLineGetStringIndexForPosition position参数是相当当前行初始点origin相当坐标，
         ///测试发现鼠标定位字符前半部分能获取正确下标，鼠标定位字符后半部分获取是下一个字符下标
-        CGFloat rangeOffset = CTLineGetStringIndexForPosition(selectedLine,(CGPoint){point.x - origin.x,point.y - origin.y});
+//        CGFloat rangeOffset = CTLineGetStringIndexForPosition(selectedLine,(CGPoint){point.x - origin.x,point.y - origin.y});
+        CGFloat rangeOffset = CTLineGetStringIndexForPosition(selectedLine,(CGPoint){point.x - origin.x,CGRectGetMinY(compareRect)+CGRectGetHeight(compareRect)/2});
         
         CGFloat xStart,xEnd;
         if (rangeOffset < lineRange.location + lineRange.length) {
@@ -743,6 +780,7 @@ typedef struct{
             xEnd = CTLineGetOffsetForStringIndex(selectedLine,rangeOffset, NULL);
         }
         
+//        rangeOffset = CTLineGetStringIndexForPosition(selectedLine,(CGPoint){point.x - origin.x - (xEnd - xStart)/2,point.y - origin.y});
         rangeOffset = CTLineGetStringIndexForPosition(selectedLine,(CGPoint){point.x - origin.x - (xEnd - xStart)/2,point.y - origin.y});
         
         if (rangeOffset < lineRange.location + lineRange.length) {
